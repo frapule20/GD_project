@@ -1,0 +1,4 @@
+repository "GD_Project/GD_Project@6872740828906@cloud"
+  path "/"
+    br "/main"
+    co "/main"

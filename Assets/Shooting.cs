@@ -18,7 +18,7 @@ public class Shooting : MonoBehaviour
 
             // 3. Assegnare la direzione del proiettile e una forza
             bulletInstance.GetComponent<Rigidbody>().AddForce(
-                transform.forward * 1000f, ForceMode.Impulse);
+                transform.forward * 100f, ForceMode.Impulse);
         }
 
         
