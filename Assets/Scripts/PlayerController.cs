@@ -5,7 +5,8 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] float moveSpeed = 5f;
+    [SerializeField] float runSpeed = 5f;
+    [SerializeField] float walkSpeed = 2f;
     [SerializeField] float rotationSpeed = 500f;
 
     [Header("Ground Check Settings")]
@@ -17,6 +18,8 @@ public class PlayerController : MonoBehaviour
     bool isGrounded;
 
     float ySpeed;
+
+    public static bool IsStealth = false;
     CameraController cameraController;
 
     Animator animator;
@@ -33,6 +36,8 @@ public class PlayerController : MonoBehaviour
     }
     private void Update()
     {
+        CheckStealth();
+
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
 
@@ -53,10 +58,11 @@ public class PlayerController : MonoBehaviour
             ySpeed += Physics.gravity.y * Time.deltaTime;
         }
 
-        var velocity = moveDir * moveSpeed;
+        var velocity = moveDir * (IsStealth ? walkSpeed : runSpeed);
+
         velocity.y = ySpeed;
-        
-        characterController.Move( velocity * Time.deltaTime);
+
+        characterController.Move(velocity * Time.deltaTime);
 
         if (moveAmount > 0)
         {
@@ -78,5 +84,14 @@ public class PlayerController : MonoBehaviour
     {
         Gizmos.color = new Color(0, 1, 0, 0.5f);
         Gizmos.DrawSphere(transform.TransformPoint(groundCheckOffset), GroundCheckRadius);
+    }
+
+    void CheckStealth()
+    {
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            IsStealth = !IsStealth;
+            animator.SetBool("IsStealth", IsStealth);
+        }
     }
 }
