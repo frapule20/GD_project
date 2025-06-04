@@ -6,7 +6,8 @@ public class PlayerController : MonoBehaviour
     [Header("Speeds")]
     [SerializeField] float runSpeed = 5f;
     [SerializeField] float walkSpeed = 2f;
-    [SerializeField] float rotationSpeed = 500f;
+    [SerializeField] float rotationSpeed = 700f;
+    [SerializeField] float acceleration = 10f;
 
     [Header("Ground Check Settings")]
     [SerializeField] float groundCheckRadius = 0.2f;
@@ -16,40 +17,70 @@ public class PlayerController : MonoBehaviour
     [Header("Step Climbing Settings")]
     [SerializeField] float stepHeight = 0.3f;
     [SerializeField] float stepDistance = 0.5f;
-    [SerializeField] float stepSmooth = 2f;
-    [SerializeField] float stepForce = 10f;
+    [SerializeField] float stepForce = 2f;
 
     private Rigidbody rb;
+    private CapsuleCollider capsuleCollider;
     private Animator animator;
     private CameraController cameraController;
 
+    GameObject graphics;
+
     private bool isGrounded;
+    private bool isHidden = false;
     private static bool IsStealth = false;
     private Quaternion targetRotation;
-    private Vector3 lastMoveDir;
+    private Vector3 currentVelocity;
+    private float h, v;
+    private Vector3 moveDir;
+    private float moveAmount;
+    private float lastStepTime;
 
     private void Awake()
     {
+        graphics = transform.GetChild(0).gameObject;
         rb = GetComponent<Rigidbody>();
+        capsuleCollider = GetComponent<CapsuleCollider>();
         animator = GetComponent<Animator>();
         cameraController = Camera.main.GetComponent<CameraController>();
 
         rb.constraints = RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationZ;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
     }
 
     private void Update()
     {
+        HandleHideToggle();
+        if (!isHidden)
+        {
+        CacheInput();
         HandleStealthToggle();
         HandleRotation();
-        animator.SetFloat("moveAmount", GetMoveAmount(), 0.2f, Time.deltaTime);
+        UpdateAnimation();
+        }
     }
 
     private void FixedUpdate()
     {
+        if (!isHidden)
+        {
         GroundCheck();
         HandleMovement();
         HandleStepClimbing();
+        }
+
+    }
+
+    private void CacheInput()
+    {
+        h = Input.GetAxis("Horizontal");
+        v = Input.GetAxis("Vertical");
+        Vector3 input = new Vector3(h, 0, v);
+        if (input.magnitude > 1f) input = input.normalized;
+        
+        moveDir = cameraController.PlanarRotation * input;
+        moveAmount = input.magnitude;
     }
 
     private void HandleStealthToggle()
@@ -61,45 +92,47 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private float GetMoveAmount()
+    private void HandleHideToggle()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
-        return Mathf.Clamp01(Mathf.Abs(h) + Mathf.Abs(v));
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            isHidden = !isHidden;
+            rb.useGravity = !isHidden;
+            capsuleCollider.enabled = !isHidden;
+            graphics.SetActive(!isHidden);
+            
+            if (isHidden)
+            {
+                rb.linearVelocity = Vector3.zero;
+                currentVelocity = Vector3.zero;
+            }
+        }
+    }
+
+    private void UpdateAnimation()
+    {
+        animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
     }
 
     private void HandleMovement()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
-        Vector3 input = new Vector3(h, 0, v).normalized;
-        Vector3 moveDir = cameraController.PlanarRotation * input;
-
         float speed = IsStealth ? walkSpeed : runSpeed;
-        Vector3 newVelocity = moveDir * speed;
-        newVelocity.y = rb.linearVelocity.y;
-
-        lastMoveDir = moveDir;
-        rb.linearVelocity = newVelocity;
+        Vector3 targetVelocity = moveDir * speed;
+        
+        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
+        
+        rb.linearVelocity = new Vector3(currentVelocity.x, rb.linearVelocity.y, currentVelocity.z);
     }
 
     private void HandleRotation()
     {
-        float moveAmount = GetMoveAmount();
-        if (moveAmount > 0f)
-        {
-            float h = Input.GetAxis("Horizontal");
-            float v = Input.GetAxis("Vertical");
-            Vector3 input = new Vector3(h, 0, v).normalized;
-            Vector3 moveDir = cameraController.PlanarRotation * input;
-            targetRotation = Quaternion.LookRotation(moveDir);
-        }
-
-        transform.rotation = Quaternion.RotateTowards(
-            transform.rotation,
+        if (moveAmount <= 0.01f) return;
+        targetRotation = Quaternion.LookRotation(moveDir);
+        rb.MoveRotation(Quaternion.RotateTowards(
+            rb.rotation,
             targetRotation,
-            rotationSpeed * Time.deltaTime
-        );
+            rotationSpeed * Time.fixedDeltaTime
+        ));
     }
 
     private void GroundCheck()
@@ -111,29 +144,13 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = new Color(0, 1, 0, 0.5f);
-        Gizmos.DrawSphere(
-            transform.TransformPoint(groundCheckOffset),
-            groundCheckRadius
-        );
-
-        Gizmos.color = Color.red;
-        Vector3 lowerPos = transform.position + Vector3.up * 0.1f;
-        Vector3 upperPos = transform.position + Vector3.up * stepHeight;
-        
-        Gizmos.DrawRay(lowerPos, transform.forward * stepDistance);
-        Gizmos.DrawRay(upperPos, transform.forward * stepDistance);
-    }
-
     void HandleStepClimbing()
     {
-        if (GetMoveAmount() == 0f) return;
+        if (moveAmount == 0f || Time.fixedTime - lastStepTime < 0.1f) return;
 
         Vector3 lowerRayStart = transform.position + Vector3.up * 0.1f;
         Vector3 upperRayStart = transform.position + Vector3.up * stepHeight;
-        Vector3 forwardDir = transform.forward;
+        Vector3 forwardDir = moveDir.normalized;
 
         RaycastHit hitLower;
         bool lowerHit = Physics.Raycast(lowerRayStart, forwardDir, out hitLower, stepDistance, groundLayer);
@@ -145,14 +162,12 @@ public class PlayerController : MonoBehaviour
 
             if (!upperHit)
             {
-                Vector3 stepUpForce = Vector3.up * stepForce;
-                rb.AddForce(stepUpForce, ForceMode.Acceleration);
-                
-                Vector3 newPos = rb.position;
-                newPos.y += stepSmooth * Time.fixedDeltaTime;
-                rb.position = newPos;
+                float currentStepForce = IsStealth ? stepForce * 1.3f : stepForce;
+                rb.AddForce(Vector3.up * currentStepForce, ForceMode.VelocityChange);
+                lastStepTime = Time.fixedTime;
             }
         }
+
         CheckStepInDirection(Quaternion.Euler(0, 45, 0) * forwardDir);
         CheckStepInDirection(Quaternion.Euler(0, -45, 0) * forwardDir);
     }
@@ -172,8 +187,9 @@ public class PlayerController : MonoBehaviour
 
             if (!upperHit)
             {
-                Vector3 stepUpForce = Vector3.up * (stepForce * 0.5f);
-                rb.AddForce(stepUpForce, ForceMode.Acceleration);
+                float diagonalForce = IsStealth ? stepForce * 0.7f : stepForce * 0.4f;
+                rb.AddForce(Vector3.up * diagonalForce, ForceMode.VelocityChange);
+                lastStepTime = Time.fixedTime;
             }
         }
     }
