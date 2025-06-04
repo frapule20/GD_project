@@ -6,7 +6,7 @@ public class PlayerController : MonoBehaviour
     [Header("Speeds")]
     [SerializeField] float runSpeed = 5f;
     [SerializeField] float walkSpeed = 2f;
-    [SerializeField] float rotationSpeed = 700f;
+    [SerializeField] float rotationSpeed = 600f;
     [SerializeField] float acceleration = 10f;
 
     [Header("Ground Check Settings")]
@@ -19,6 +19,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float stepDistance = 0.5f;
     [SerializeField] float stepForce = 2f;
 
+    public static bool IsStealth = false;
+    public static bool IsHidden = false;
+
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
     private Animator animator;
@@ -27,8 +30,9 @@ public class PlayerController : MonoBehaviour
     GameObject graphics;
 
     private bool isGrounded;
-    private bool isHidden = false;
-    private static bool IsStealth = false;
+    private bool isHidable = false;
+
+    
     private Quaternion targetRotation;
     private Vector3 currentVelocity;
     private float h, v;
@@ -52,22 +56,22 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         HandleHideToggle();
-        if (!isHidden)
+        if (!IsHidden)
         {
-        CacheInput();
-        HandleStealthToggle();
-        HandleRotation();
-        UpdateAnimation();
+            CacheInput();
+            HandleStealthToggle();
+            HandleRotation();
+            UpdateAnimation();
         }
     }
 
     private void FixedUpdate()
     {
-        if (!isHidden)
+        if (!IsHidden)
         {
-        GroundCheck();
-        HandleMovement();
-        HandleStepClimbing();
+            GroundCheck();
+            HandleMovement();
+            HandleStepClimbing();
         }
 
     }
@@ -78,7 +82,7 @@ public class PlayerController : MonoBehaviour
         v = Input.GetAxis("Vertical");
         Vector3 input = new Vector3(h, 0, v);
         if (input.magnitude > 1f) input = input.normalized;
-        
+
         moveDir = cameraController.PlanarRotation * input;
         moveAmount = input.magnitude;
     }
@@ -94,14 +98,14 @@ public class PlayerController : MonoBehaviour
 
     private void HandleHideToggle()
     {
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKeyDown(KeyCode.E) && isHidable)
         {
-            isHidden = !isHidden;
-            rb.useGravity = !isHidden;
-            capsuleCollider.enabled = !isHidden;
-            graphics.SetActive(!isHidden);
-            
-            if (isHidden)
+            IsHidden = !IsHidden;
+            rb.useGravity = !IsHidden;
+            capsuleCollider.enabled = !IsHidden;
+            graphics.SetActive(!IsHidden);
+
+            if (IsHidden)
             {
                 rb.linearVelocity = Vector3.zero;
                 currentVelocity = Vector3.zero;
@@ -118,9 +122,9 @@ public class PlayerController : MonoBehaviour
     {
         float speed = IsStealth ? walkSpeed : runSpeed;
         Vector3 targetVelocity = moveDir * speed;
-        
+
         currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
-        
+
         rb.linearVelocity = new Vector3(currentVelocity.x, rb.linearVelocity.y, currentVelocity.z);
     }
 
@@ -193,4 +197,21 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.gameObject.tag == "Hidable")
+        {
+            isHidable = true;
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.gameObject.tag == "Hidable")
+        {
+            isHidable = false;
+        }
+    }
+
 }
