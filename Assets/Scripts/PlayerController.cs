@@ -1,3 +1,5 @@
+using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
@@ -19,8 +21,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float stepDistance = 0.5f;
     [SerializeField] float stepForce = 2f;
 
-    public static bool IsStealth = false;
+    public bool IsStealth = false;
     public static bool IsHidden = false;
+
+    public bool IsMoving = false;
 
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
@@ -116,6 +120,7 @@ public class PlayerController : MonoBehaviour
     private void UpdateAnimation()
     {
         animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
+        IsMoving = moveAmount != 0f;
     }
 
     private void HandleMovement()
