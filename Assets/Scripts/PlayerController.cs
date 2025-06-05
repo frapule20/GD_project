@@ -23,8 +23,9 @@ public class PlayerController : MonoBehaviour
 
     public bool IsStealth = false;
     public static bool IsHidden = false;
-
     public bool IsMoving = false;
+
+    public bool IsDead = false; 
 
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
@@ -59,6 +60,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (IsDead) return;
         HandleHideToggle();
         if (!IsHidden)
         {
@@ -151,6 +153,12 @@ public class PlayerController : MonoBehaviour
             groundCheckRadius,
             groundLayer
         );
+    }
+
+    public void KillMe()
+    {
+        IsDead = true;
+        animator.SetBool("IsDead", IsDead);
     }
 
     void HandleStepClimbing()
