@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 
 public enum AIState
@@ -112,8 +113,7 @@ public class EnemyController : MonoBehaviour
                 }
                 break;
             case AIState.Attack:
-                player.KillMe();
-                ChangeState(AIState.Wait);
+                Debug.Log("Attacca ma non fa nulla (4)");
                 break;
         }
     }
@@ -125,6 +125,12 @@ public class EnemyController : MonoBehaviour
 
         UpdateAnimation();
 
+        if (newState == AIState.Attack)
+        {
+            Debug.Log("Nuovo Stato: Attacco (2)");
+            StartCoroutine(AttackRoutine());
+        }
+
     }
 
     void UpdateAnimation()
@@ -134,6 +140,7 @@ public class EnemyController : MonoBehaviour
             case AIState.Idle:
                 agent.speed = 0f;
                 agent.isStopped = true;
+                anim.ResetTrigger("Attack");
                 anim.SetBool("IsMoving", false);
                 anim.SetBool("IsAlert", false);
                 break;
@@ -142,34 +149,34 @@ public class EnemyController : MonoBehaviour
                 agent.isStopped = false;
                 anim.SetBool("IsMoving", true);
                 anim.SetBool("IsAlert", false);
-                anim.SetBool("IsAttacking", false);
-                anim.SetBool("IsAttacking", false);
+                anim.ResetTrigger("Attack");
                 break;
             case AIState.Wait:
                 agent.speed = 0f;
                 agent.isStopped = true;
                 anim.SetBool("IsMoving", false);
                 anim.SetBool("IsAlert", false);
-                anim.SetBool("IsAttacking", false);
+                anim.ResetTrigger("Attack");
                 break;
             case AIState.Alert:
                 agent.speed = walkSpeed;
                 anim.SetBool("IsMoving", true);
                 anim.SetBool("IsAlert", false);
-                anim.SetBool("IsAttacking", false);
+                anim.ResetTrigger("Attack");
                 break;
             case AIState.Chase:
                 agent.speed = runSpeed;
                 anim.SetBool("IsMoving", true);
                 anim.SetBool("IsAlert", true);
-                anim.SetBool("IsAttacking", false);
+                anim.ResetTrigger("Attack");
                 break;
             case AIState.Attack:
                 agent.speed = 0f;
                 agent.isStopped = true;
                 anim.SetBool("IsMoving", false);
                 anim.SetBool("IsAlert", false);
-                anim.SetBool("IsAttacking", true);
+                anim.SetTrigger("Attack");
+                Debug.Log("Attacking Player State (1)");
                 break;
         }
     }
@@ -199,6 +206,13 @@ public class EnemyController : MonoBehaviour
         {
             actualCheckPoint = 0;
         }
+    }
+
+    public void HitPlayer()
+    {
+        Debug.Log("Hit Player");
+        player.KillMe();
+        ChangeState(AIState.Wait);
     }
 
 
@@ -269,6 +283,14 @@ public class EnemyController : MonoBehaviour
         return false;
     }
     #endregion
+
+    IEnumerator AttackRoutine()
+    {
+        agent.isStopped = true;
+        Debug.Log("Attack Routine started (3)");
+        anim.SetTrigger("Attack"); 
+        yield return null;
+    }
 
     private void OnDrawGizmosSelected()
     {
