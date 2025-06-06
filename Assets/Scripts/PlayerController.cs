@@ -62,11 +62,12 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         Debug.Log("Player cannot move at the moment: " + CanMove);
-        if (IsDead || !CanMove) return;
-
-        if (!CanMove)
+        if (IsDead || !CanMove)
         {
-            animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
+            animator.SetFloat("moveAmount", 0f, 0f, Time.deltaTime);
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            currentVelocity = Vector3.zero;
+            return;
         }
 
         HandleHideToggle();
@@ -181,47 +182,23 @@ public class PlayerController : MonoBehaviour
         Vector3 upperRayStart = transform.position + Vector3.up * stepHeight;
         Vector3 forwardDir = moveDir.normalized;
 
-        RaycastHit hitLower;
-        bool lowerHit = Physics.Raycast(lowerRayStart, forwardDir, out hitLower, stepDistance, groundLayer);
-
-        if (lowerHit)
-        {
-            RaycastHit hitUpper;
-            bool upperHit = Physics.Raycast(upperRayStart, forwardDir, out hitUpper, stepDistance, groundLayer);
-
-            if (!upperHit)
-            {
-                float currentStepForce = IsStealth ? stepForce * 1.3f : stepForce;
-                rb.AddForce(Vector3.up * currentStepForce, ForceMode.VelocityChange);
-                lastStepTime = Time.fixedTime;
-            }
-        }
-
-        CheckStepInDirection(Quaternion.Euler(0, 45, 0) * forwardDir);
-        CheckStepInDirection(Quaternion.Euler(0, -45, 0) * forwardDir);
+        if (TryStepUp(lowerRayStart, upperRayStart, forwardDir, IsStealth ? stepForce * 1.3f : stepForce)) return;
+        if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, 45, 0) * forwardDir, IsStealth ? stepForce * 0.7f : stepForce * 0.4f)) return;
+        if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, -45, 0) * forwardDir, IsStealth ? stepForce * 0.7f : stepForce * 0.4f)) return;
     }
 
-    private void CheckStepInDirection(Vector3 direction)
+    bool TryStepUp(Vector3 lowerStart, Vector3 upperStart, Vector3 dir, float force)
     {
-        Vector3 lowerRayStart = transform.position + Vector3.up * 0.1f;
-        Vector3 upperRayStart = transform.position + Vector3.up * stepHeight;
+        if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer)) return false;
+        float heightDiff = lowerHit.point.y - transform.position.y;
+        if (heightDiff <= 0.01f) return false;
+        if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer)) return false;
 
-        RaycastHit hitLower;
-        bool lowerHit = Physics.Raycast(lowerRayStart, direction, out hitLower, stepDistance * 0.7f, groundLayer);
-
-        if (lowerHit)
-        {
-            RaycastHit hitUpper;
-            bool upperHit = Physics.Raycast(upperRayStart, direction, out hitUpper, stepDistance * 0.7f, groundLayer);
-
-            if (!upperHit)
-            {
-                float diagonalForce = IsStealth ? stepForce * 0.7f : stepForce * 0.4f;
-                rb.AddForce(Vector3.up * diagonalForce, ForceMode.VelocityChange);
-                lastStepTime = Time.fixedTime;
-            }
-        }
+        rb.AddForce(Vector3.up * force, ForceMode.VelocityChange);
+        lastStepTime = Time.fixedTime;
+        return true;
     }
+
 
     private void OnTriggerEnter(Collider other)
     {
