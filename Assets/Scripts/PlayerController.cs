@@ -24,8 +24,9 @@ public class PlayerController : MonoBehaviour
     public bool IsStealth = false;
     public static bool IsHidden = false;
     public bool IsMoving = false;
-
     public bool IsDead = false; 
+
+    public bool CanMove = true;
 
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
@@ -60,8 +61,16 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (IsDead) return;
+        Debug.Log("Player cannot move at the moment: " + CanMove);
+        if (IsDead || !CanMove) return;
+
+        if (!CanMove)
+        {
+            animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
+        }
+
         HandleHideToggle();
+
         if (!IsHidden)
         {
             CacheInput();
@@ -73,13 +82,13 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!IsHidden)
-        {
-            GroundCheck();
-            HandleMovement();
-            HandleStepClimbing();
-        }
+        if (IsDead || !CanMove || IsHidden) 
+        return;
 
+        GroundCheck();
+        HandleMovement();
+        HandleStepClimbing();
+    
     }
 
     private void CacheInput()
@@ -159,6 +168,8 @@ public class PlayerController : MonoBehaviour
     {
         if (IsDead) return;
         IsDead = true;
+        CanMove = false;
+        animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
         animator.SetTrigger("Die");
     }
 

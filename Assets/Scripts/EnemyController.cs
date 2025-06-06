@@ -107,13 +107,14 @@ public class EnemyController : MonoBehaviour
                     ChangeState(AIState.Wait);
                     break;
                 }
-                if (PlayerInSight() && TimeOut(0.3f))
+                if (PlayerInSight() && DestinationReached() && TimeOut(0.3f))
                 {
+                    Debug.Log("Acciuffata");
+                    player.CanMove = false;
                     ChangeState(AIState.Attack);
                 }
                 break;
             case AIState.Attack:
-                Debug.Log("Attacca ma non fa nulla (4)");
                 break;
         }
     }
@@ -127,7 +128,7 @@ public class EnemyController : MonoBehaviour
 
         if (newState == AIState.Attack)
         {
-            Debug.Log("Nuovo Stato: Attacco (2)");
+            
             StartCoroutine(AttackRoutine());
         }
 
@@ -176,7 +177,6 @@ public class EnemyController : MonoBehaviour
                 anim.SetBool("IsMoving", false);
                 anim.SetBool("IsAlert", false);
                 anim.SetTrigger("Attack");
-                Debug.Log("Attacking Player State (1)");
                 break;
         }
     }
@@ -287,7 +287,6 @@ public class EnemyController : MonoBehaviour
     IEnumerator AttackRoutine()
     {
         agent.isStopped = true;
-        Debug.Log("Attack Routine started (3)");
         anim.SetTrigger("Attack"); 
         yield return null;
     }
