@@ -157,8 +157,9 @@ public class PlayerController : MonoBehaviour
 
     public void KillMe()
     {
+        if (IsDead) return;
         IsDead = true;
-        animator.SetBool("IsDead", IsDead);
+        animator.SetTrigger("Die");
     }
 
     void HandleStepClimbing()
