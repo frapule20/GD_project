@@ -27,6 +27,8 @@ public class EnemyController : MonoBehaviour
     [SerializeField] public float hearingRange = 5f;
     [SerializeField] public float sightRange = 5f;
     [Range(0, 360)] public float sightAngle = 120;
+    private AudioSource audioSource;
+    public AudioClip attackClip;
     
 
     Animator anim;
@@ -41,9 +43,12 @@ public class EnemyController : MonoBehaviour
 
     void Start()
     {
-        player = FindFirstObjectByType <PlayerController>();
+        player = FindFirstObjectByType<PlayerController>();
         agent = GetComponent<NavMeshAgent>();
         anim = transform.GetComponentInChildren<Animator>();
+        audioSource = GetComponent<AudioSource>();
+        audioSource.spatialBlend = 1f;
+        audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
 
     }
 
@@ -109,7 +114,6 @@ public class EnemyController : MonoBehaviour
                 }
                 if (PlayerInSight() && DestinationReached() && TimeOut(0.3f))
                 {
-                    Debug.Log("Acciuffata");
                     player.CanMove = false;
                     ChangeState(AIState.Attack);
                 }
@@ -174,6 +178,10 @@ public class EnemyController : MonoBehaviour
             case AIState.Attack:
                 agent.speed = 0f;
                 agent.isStopped = true;
+                if (!audioSource.isPlaying)
+                {
+                    audioSource.PlayOneShot(attackClip);
+                }
                 anim.SetBool("IsMoving", false);
                 anim.SetBool("IsAlert", false);
                 anim.SetTrigger("Attack");
