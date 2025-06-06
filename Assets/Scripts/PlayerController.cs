@@ -2,6 +2,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 
+
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public class PlayerController : MonoBehaviour
 {
@@ -27,6 +28,8 @@ public class PlayerController : MonoBehaviour
     public bool IsDead = false; 
 
     public bool CanMove = true;
+    public GameObject hidePrompt;
+
 
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
@@ -120,6 +123,7 @@ public class PlayerController : MonoBehaviour
             rb.useGravity = !IsHidden;
             capsuleCollider.enabled = !IsHidden;
             graphics.SetActive(!IsHidden);
+            hidePrompt.SetActive(!IsHidden && isHidable);
 
             if (IsHidden)
             {
@@ -202,9 +206,10 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.gameObject.tag == "Hidable")
+        if (other.gameObject.tag == "Hidable")
         {
             isHidable = true;
+            hidePrompt.SetActive(true);
         }
     }
 
@@ -213,6 +218,7 @@ public class PlayerController : MonoBehaviour
         if (other.gameObject.tag == "Hidable")
         {
             isHidable = false;
+            hidePrompt.SetActive(false);
         }
     }
 
