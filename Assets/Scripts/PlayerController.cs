@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEngine;
 
 
+
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public class PlayerController : MonoBehaviour
 {
@@ -17,6 +18,17 @@ public class PlayerController : MonoBehaviour
     [SerializeField] Vector3 groundCheckOffset;
     [SerializeField] LayerMask groundLayer;
 
+
+    [Header("Push Settings")]
+    [SerializeField] float forceapll = 10f;
+    private Rigidbody currentPushRb;
+    private float originalDrag, originalAngularDrag;
+
+    private enum PushAxis { None, X, Z }
+    private PushAxis currentPushAxis = PushAxis.None;
+    private RigidbodyConstraints originalConstraints;
+
+
     [Header("Step Climbing Settings")]
     [SerializeField] float stepHeight = 0.3f;
     [SerializeField] float stepDistance = 0.5f;
@@ -25,7 +37,7 @@ public class PlayerController : MonoBehaviour
     public bool IsStealth = false;
     public static bool IsHidden = false;
     public bool IsMoving = false;
-    public bool IsDead = false; 
+    public bool IsDead = false;
 
     public bool CanMove = true;
     public GameObject hidePrompt;
@@ -36,12 +48,15 @@ public class PlayerController : MonoBehaviour
     private Animator animator;
     private CameraController cameraController;
 
+    private FixedJoint pushJoint;
+    private Rigidbody pushedRigidbody;
+
     GameObject graphics;
 
     private bool isGrounded;
     private bool isHidable = false;
 
-    
+
     private Quaternion targetRotation;
     private Vector3 currentVelocity;
     private float h, v;
@@ -60,11 +75,11 @@ public class PlayerController : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationZ;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
+        originalConstraints = rb.constraints;
     }
 
     private void Update()
     {
-        Debug.Log("Player cannot move at the moment: " + CanMove);
         if (IsDead || !CanMove)
         {
             animator.SetFloat("moveAmount", 0f, 0f, Time.deltaTime);
@@ -86,13 +101,14 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (IsDead || !CanMove || IsHidden) 
-        return;
+        if (IsDead || !CanMove || IsHidden)
+            return;
 
         GroundCheck();
         HandleMovement();
         HandleStepClimbing();
-    
+        HandlePush();
+
     }
 
     private void CacheInput()
@@ -104,6 +120,14 @@ public class PlayerController : MonoBehaviour
 
         moveDir = cameraController.PlanarRotation * input;
         moveAmount = input.magnitude;
+
+        if (currentPushRb != null)
+        {
+        float forwardDot = Vector3.Dot(moveDir, transform.forward);
+        forwardDot = Mathf.Max(0f, forwardDot);
+        moveDir = transform.forward * forwardDot;
+        moveAmount = forwardDot;
+        }
     }
 
     private void HandleStealthToggle()
@@ -142,7 +166,12 @@ public class PlayerController : MonoBehaviour
     private void HandleMovement()
     {
         float speed = IsStealth ? walkSpeed : runSpeed;
-        Vector3 targetVelocity = moveDir * speed;
+        Vector3 targetVelocity;
+
+        if (currentPushRb != null)
+            targetVelocity = moveDir * walkSpeed;
+        else
+            targetVelocity = moveDir * speed;
 
         currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
 
@@ -152,6 +181,7 @@ public class PlayerController : MonoBehaviour
     private void HandleRotation()
     {
         if (moveAmount <= 0.01f) return;
+        if (currentPushRb != null) return;
         targetRotation = Quaternion.LookRotation(moveDir);
         rb.MoveRotation(Quaternion.RotateTowards(
             rb.rotation,
@@ -180,6 +210,7 @@ public class PlayerController : MonoBehaviour
 
     void HandleStepClimbing()
     {
+        if (currentPushRb != null) return;
         if (moveAmount == 0f || Time.fixedTime - lastStepTime < 0.1f) return;
 
         Vector3 lowerRayStart = transform.position + Vector3.up * 0.1f;
@@ -194,6 +225,8 @@ public class PlayerController : MonoBehaviour
     bool TryStepUp(Vector3 lowerStart, Vector3 upperStart, Vector3 dir, float force)
     {
         if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer)) return false;
+        if (lowerHit.collider.CompareTag("Pushable") || lowerHit.collider.transform.root.CompareTag("Pushable"))
+        return false;
         float heightDiff = lowerHit.point.y - transform.position.y;
         if (heightDiff <= 0.01f) return false;
         if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer)) return false;
@@ -220,6 +253,84 @@ public class PlayerController : MonoBehaviour
             isHidable = false;
             hidePrompt.SetActive(false);
         }
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+    if (collision.gameObject.CompareTag("Pushable"))
+    {
+        Debug.Log("Collision with Pushable detected");
+        Vector3 forward = transform.forward;
+        Vector3 toObject = (collision.transform.position - transform.position).normalized;
+        float dot = Vector3.Dot(forward, toObject);
+
+        if (dot > 0.8f) // Se il giocatore sta andando "dentro" la botte
+        {
+            rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0); // Ferma l'avanzamento
+        }
+    }
+    }
+
+    void HandlePush()
+    {
+        bool isPressing = Input.GetMouseButton(0);
+
+        if (isPressing)
+        {
+            if (currentPushRb == null)
+            {
+                Vector3 origin = transform.position + Vector3.up * 0.6f;
+                if (Physics.Raycast(origin, transform.forward, out RaycastHit hit, 1.5f)
+                    && hit.collider.CompareTag("Pushable"))
+                {
+                    currentPushRb = hit.collider.attachedRigidbody;
+                    originalDrag = currentPushRb.linearDamping;
+                    originalAngularDrag = currentPushRb.angularDamping;
+                    currentPushRb.linearDamping = 8f;
+                    currentPushRb.angularDamping = 8f;
+
+                    Vector3 dir = transform.forward;
+                    currentPushAxis = Mathf.Abs(dir.x) > Mathf.Abs(dir.z) ? PushAxis.X : PushAxis.Z;
+
+                    RigidbodyConstraints freezePos = RigidbodyConstraints.FreezePositionY;
+                    freezePos |= (currentPushAxis == PushAxis.X)
+                                ? RigidbodyConstraints.FreezePositionZ
+                                : RigidbodyConstraints.FreezePositionX;
+                    rb.constraints = freezePos
+                                | RigidbodyConstraints.FreezeRotation;
+                }
+            }
+
+            if (currentPushRb != null)
+            {
+                Vector3 pushDir = transform.forward;
+                pushDir.y = 0f;
+                pushDir.Normalize();
+                currentPushRb.AddForceAtPosition(pushDir * forceapll, currentPushRb.worldCenterOfMass, ForceMode.Force);
+                animator.SetBool("IsPushing", true);
+                return;
+            }
+        }
+
+        if (currentPushRb != null)
+        {
+            currentPushRb.linearDamping = originalDrag;
+            currentPushRb.angularDamping = originalAngularDrag;
+            currentPushRb = null;
+            currentPushAxis = PushAxis.None;
+            rb.constraints = originalConstraints;
+            
+        }
+
+        animator.SetBool("IsPushing", false);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.TransformPoint(groundCheckOffset), groundCheckRadius);
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.1f, 0.1f);
     }
 
 }
