@@ -38,8 +38,12 @@ public class PlayerController : MonoBehaviour
     public static bool IsHidden = false;
     public bool IsMoving = false;
     public bool IsDead = false;
-
     public bool CanMove = true;
+
+    public bool RedKey = false;
+    public bool BlueKey = false;
+
+    [Header("UI Elements")]
     public GameObject hidePrompt;
 
 
@@ -308,6 +312,7 @@ public class PlayerController : MonoBehaviour
                 pushDir.Normalize();
                 currentPushRb.AddForceAtPosition(pushDir * forceapll, currentPushRb.worldCenterOfMass, ForceMode.Force);
                 animator.SetBool("IsPushing", true);
+                animator.SetBool("IsStealth", false);
                 return;
             }
         }
