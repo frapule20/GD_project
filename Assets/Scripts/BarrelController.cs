@@ -12,6 +12,7 @@ public class BarrelController : MonoBehaviour
     float defaultDrag;
     float defaultAngularDrag;
 
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
