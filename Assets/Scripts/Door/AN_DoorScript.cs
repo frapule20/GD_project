@@ -64,9 +64,19 @@ public class AN_DoorScript : MonoBehaviour
         player = FindFirstObjectByType<PlayerController>();
         audioSource = GetComponent<AudioSource>();
 
-        // Nascondi i prompts
-        if (OpenDoorPrompt) OpenDoorPrompt.SetActive(false);
-        if (MissingPrompt) MissingPrompt.SetActive(false);
+        if (OpenDoorPrompt != null)
+        {
+            OpenDoorPrompt.SetActive(false);
+        }
+        {
+            OpenDoorPrompt.SetActive(true);
+            OpenDoorPrompt.SetActive(false);
+        } 
+        if (MissingPrompt != null)
+        {
+            MissingPrompt.SetActive(true);
+            MissingPrompt.SetActive(false);
+        }
     }
 
     void Update()
