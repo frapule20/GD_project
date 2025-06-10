@@ -34,6 +34,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float stepDistance = 0.5f;
     [SerializeField] float stepForce = 2f;
 
+    [Header("Audio")]
+    [Tooltip("Suono da riprodurre quando il giocatore si nasconde/mostra")]
+    public AudioClip hideToggleSound;
+    
+    private AudioSource audioSource;
+
+
     public bool IsStealth = false;
     public static bool IsHidden = false;
     public bool IsMoving = false;
@@ -75,11 +82,14 @@ public class PlayerController : MonoBehaviour
         capsuleCollider = GetComponent<CapsuleCollider>();
         animator = GetComponent<Animator>();
         cameraController = Camera.main.GetComponent<CameraController>();
+        audioSource = GetComponent<AudioSource>();
 
         rb.constraints = RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationZ;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         originalConstraints = rb.constraints;
+        if (hidePrompt != null) hidePrompt.SetActive(false);
+
     }
 
     private void Update()
@@ -127,10 +137,10 @@ public class PlayerController : MonoBehaviour
 
         if (currentPushRb != null)
         {
-        float forwardDot = Vector3.Dot(moveDir, transform.forward);
-        forwardDot = Mathf.Max(0f, forwardDot);
-        moveDir = transform.forward * forwardDot;
-        moveAmount = forwardDot;
+            float forwardDot = Vector3.Dot(moveDir, transform.forward);
+            forwardDot = Mathf.Max(0f, forwardDot);
+            moveDir = transform.forward * forwardDot;
+            moveAmount = forwardDot;
         }
     }
 
@@ -148,7 +158,9 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.E) && isHidable)
         {
             IsHidden = !IsHidden;
+            PlayHideToggleSound();
             rb.useGravity = !IsHidden;
+            
             capsuleCollider.enabled = !IsHidden;
             graphics.SetActive(!IsHidden);
             hidePrompt.SetActive(!IsHidden && isHidable);
@@ -230,7 +242,7 @@ public class PlayerController : MonoBehaviour
     {
         if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer)) return false;
         if (lowerHit.collider.CompareTag("Pushable") || lowerHit.collider.transform.root.CompareTag("Pushable"))
-        return false;
+            return false;
         float heightDiff = lowerHit.point.y - transform.position.y;
         if (heightDiff <= 0.01f) return false;
         if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer)) return false;
@@ -261,18 +273,18 @@ public class PlayerController : MonoBehaviour
 
     void OnCollisionStay(Collision collision)
     {
-    if (collision.gameObject.CompareTag("Pushable"))
-    {
-        Debug.Log("Collision with Pushable detected");
-        Vector3 forward = transform.forward;
-        Vector3 toObject = (collision.transform.position - transform.position).normalized;
-        float dot = Vector3.Dot(forward, toObject);
-
-        if (dot > 0.8f) // Se il giocatore sta andando "dentro" la botte
+        if (collision.gameObject.CompareTag("Pushable"))
         {
-            rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0); // Ferma l'avanzamento
+            Debug.Log("Collision with Pushable detected");
+            Vector3 forward = transform.forward;
+            Vector3 toObject = (collision.transform.position - transform.position).normalized;
+            float dot = Vector3.Dot(forward, toObject);
+
+            if (dot > 0.8f)
+            {
+                rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+            }
         }
-    }
     }
 
     void HandlePush()
@@ -324,7 +336,7 @@ public class PlayerController : MonoBehaviour
             currentPushRb = null;
             currentPushAxis = PushAxis.None;
             rb.constraints = originalConstraints;
-            
+
         }
 
         animator.SetBool("IsPushing", false);
@@ -336,6 +348,14 @@ public class PlayerController : MonoBehaviour
         Gizmos.DrawWireSphere(transform.TransformPoint(groundCheckOffset), groundCheckRadius);
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.1f, 0.1f);
+    }
+    
+    private void PlayHideToggleSound()
+    {
+        if (audioSource != null && hideToggleSound != null)
+        {
+            audioSource.PlayOneShot(hideToggleSound);
+        }
     }
 
 }

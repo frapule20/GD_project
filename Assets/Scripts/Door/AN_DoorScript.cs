@@ -20,15 +20,29 @@ public class AN_DoorScript : MonoBehaviour
     [Tooltip("It is used for key script working")]
     PlayerController player;
     [Space]
+
+    [Header("UI Prompts")]
+    [Tooltip("Prompt shown when player can open the door")]
+    public GameObject OpenDoorPrompt;
+    [Tooltip("Prompt shown when player is missing a key")]
+    public GameObject MissingPrompt;
+    [Space]
     public bool isOpened = false;
     [Range(0f, 4f)]
     [Tooltip("Speed for door opening, degrees per sec")]
     public float OpenSpeed = 3f;
 
+    [Header("Audio")]
+    [Tooltip("Suono da riprodurre quando il giocatore prede le chiavi")]
+    public AudioClip doorOpenSound;
+
+    private AudioSource audioSource;
+
     // NearView()
     float distance;
     float angleView;
     Vector3 direction;
+    
 
     // Hinge
     [HideInInspector]
@@ -48,6 +62,11 @@ public class AN_DoorScript : MonoBehaviour
         rbDoor.mass = 10f;
         hinge = GetComponent<HingeJoint>();
         player = FindFirstObjectByType<PlayerController>();
+        audioSource = GetComponent<AudioSource>();
+
+        // Nascondi i prompts
+        if (OpenDoorPrompt) OpenDoorPrompt.SetActive(false);
+        if (MissingPrompt) MissingPrompt.SetActive(false);
     }
 
     void Update()
@@ -61,16 +80,68 @@ public class AN_DoorScript : MonoBehaviour
                 stateChangeTimer = 0f;
             }
         }
+
+
+        bool nearDoor = NearView();
         
-        if (!Remote && Input.GetKeyDown(KeyCode.E) && NearView() && !doorStateChanged)
+        if (nearDoor)
+        {
+            ShowPrompts();
+        }
+        else
+        {
+            HidePrompts();
+        }
+        
+
+        if (!Remote && Input.GetKeyDown(KeyCode.Space) && NearView() && !doorStateChanged)
         {
             Action();
         }
     }
 
+    void ShowPrompts()
+    {
+        if (isOpened)
+        {           
+            HidePrompts();
+            return;
+        }
+        // Se può aprire/chiudere la porta
+        if (CanOpenDoor())
+        {
+            if (OpenDoorPrompt) OpenDoorPrompt.SetActive(true);
+            if (MissingPrompt) MissingPrompt.SetActive(false);
+        }
+        // Se manca qualcosa
+        else
+        {
+            if (OpenDoorPrompt) OpenDoorPrompt.SetActive(false);
+            if (MissingPrompt) MissingPrompt.SetActive(true);
+        }
+    }
+    
+    void HidePrompts()
+    {
+        if (OpenDoorPrompt) OpenDoorPrompt.SetActive(false);
+        if (MissingPrompt) MissingPrompt.SetActive(false);
+    }
+
+    bool CanOpenDoor()
+    {
+        // Se è già aperta può chiudere
+        if (isOpened) return true;
+        
+        // Controlla se ha le chiavi necessarie
+        bool hasRed = !RedLocked || (player && player.RedKey);
+        bool hasBlue = !BlueLocked || (player && player.BlueKey);
+        
+        return hasRed && hasBlue;
+    }
+
     public void Action() // void to open/close door
     {
-        
+
         if (!Locked && !doorStateChanged)
         {
             // key lock checking
@@ -84,13 +155,14 @@ public class AN_DoorScript : MonoBehaviour
                 BlueLocked = false;
                 player.BlueKey = false;
             }
-            
+
             // opening/closing
             if (isOpened && CanClose && !RedLocked && !BlueLocked)
             {
                 rbDoor.mass = 10f;
                 isOpened = false;
                 doorStateChanged = true;
+                PlayDoorSound();
             }
             else if (!isOpened && CanOpen && !RedLocked && !BlueLocked)
             {
@@ -98,7 +170,8 @@ public class AN_DoorScript : MonoBehaviour
                 rbDoor.mass = 1f;
                 isOpened = true;
                 doorStateChanged = true; // Blocca cambi di stato per un po'
-                rbDoor.AddRelativeTorque(new Vector3(0, 0, 20f)); 
+                rbDoor.AddRelativeTorque(new Vector3(0, 0, 20f));
+                PlayDoorSound();
             }
         }
         else if (doorStateChanged)
@@ -109,7 +182,7 @@ public class AN_DoorScript : MonoBehaviour
         {
             Debug.Log("DOOR ACTION BLOCKED - Door is locked!");
         }
-    
+
     }
 
     bool NearView() // it is true if you near interactive object
@@ -141,5 +214,13 @@ public class AN_DoorScript : MonoBehaviour
         hingeLim.max = currentLim;
         hingeLim.min = -currentLim;
         hinge.limits = hingeLim;
+    }
+
+    private void PlayDoorSound()
+    {
+        if (audioSource != null && doorOpenSound != null)
+        {
+            audioSource.PlayOneShot(doorOpenSound);
+        }
     }
 }
