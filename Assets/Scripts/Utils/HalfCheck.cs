@@ -21,10 +21,15 @@ public class HalfCheck : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
         }
 
+        audioClip.LoadAudioData();
         audioSource.clip = audioClip;
         audioSource.volume = volume;
         audioSource.playOnAwake = false;
-        if (dialogue != null) dialogue.SetActive(false);
+        if (dialogue != null)
+        {
+            dialogue.SetActive(true);
+            dialogue.SetActive(false);
+        }
     }
 
     void OnTriggerEnter(Collider other)
@@ -32,7 +37,6 @@ public class HalfCheck : MonoBehaviour
         // Controlla se l'oggetto che entra è il player e se l'audio non è già stato riprodotto
         if (other.CompareTag("Player") && !hasTriggered)
         {
-            // Riproduci l'audio
             audioSource.Play();
             if (dialogue != null)
             {

@@ -27,7 +27,11 @@ public class AN_DoorKey : MonoBehaviour
     {
         player = FindFirstObjectByType<PlayerController>(); // key will get up and it will saved in "inventary"
         audioSource = GetComponent<AudioSource>();
-        if (grabPrompt) grabPrompt.SetActive(false);
+        if (grabPrompt != null)
+        {
+            grabPrompt.SetActive(true);
+            grabPrompt.SetActive(false);
+        } 
     }
 
     void Update()

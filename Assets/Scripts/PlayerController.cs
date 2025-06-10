@@ -2,12 +2,10 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 
-
-
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Speeds")]
+    [Header("Movement Speeds")]
     [SerializeField] float runSpeed = 5f;
     [SerializeField] float walkSpeed = 2f;
     [SerializeField] float rotationSpeed = 600f;
@@ -18,64 +16,67 @@ public class PlayerController : MonoBehaviour
     [SerializeField] Vector3 groundCheckOffset;
     [SerializeField] LayerMask groundLayer;
 
-
     [Header("Push Settings")]
-    [SerializeField] float forceapll = 10f;
-    private Rigidbody currentPushRb;
-    private float originalDrag, originalAngularDrag;
-
-    private enum PushAxis { None, X, Z }
-    private PushAxis currentPushAxis = PushAxis.None;
-    private RigidbodyConstraints originalConstraints;
-
+    [SerializeField] float pushForce = 10f;
+    [SerializeField] float pushSpeedMultiplier = 0.3f;
+    private GameObject currentPushableObject;
+    private bool isPushing = false;
 
     [Header("Step Climbing Settings")]
-    [SerializeField] float stepHeight = 0.3f;
+    [SerializeField] float stepHeight = 0.35f;
     [SerializeField] float stepDistance = 0.5f;
-    [SerializeField] float stepForce = 2f;
+    [SerializeField] float stepForce = 2.1f;
 
     [Header("Audio")]
     [Tooltip("Suono da riprodurre quando il giocatore si nasconde/mostra")]
     public AudioClip hideToggleSound;
     
-    private AudioSource audioSource;
+    [Header("UI Elements")]
+    public GameObject hidePrompt;
 
-
+    // Public States
     public bool IsStealth = false;
     public static bool IsHidden = false;
     public bool IsMoving = false;
     public bool IsDead = false;
     public bool CanMove = true;
-
     public bool RedKey = false;
     public bool BlueKey = false;
 
-    [Header("UI Elements")]
-    public GameObject hidePrompt;
-
-
+    // Private Components
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
     private Animator animator;
     private CameraController cameraController;
+    private AudioSource audioSource;
+    private GameObject graphics;
 
-    private FixedJoint pushJoint;
-    private Rigidbody pushedRigidbody;
-
-    GameObject graphics;
-
+    // Private States
     private bool isGrounded;
+
     private bool isHidable = false;
 
 
+    // Movement Variables
     private Quaternion targetRotation;
     private Vector3 currentVelocity;
     private float h, v;
     private Vector3 moveDir;
     private float moveAmount;
     private float lastStepTime;
+    private bool prevStealth = false;
 
     private void Awake()
+    {
+        InitializeComponents();
+        SetupRigidbody();
+
+        if (hidePrompt != null)
+            hidePrompt.SetActive(true);
+            hidePrompt.SetActive(false);
+    }
+
+    private void InitializeComponents()
     {
         graphics = transform.GetChild(0).gameObject;
         rb = GetComponent<Rigidbody>();
@@ -83,22 +84,19 @@ public class PlayerController : MonoBehaviour
         animator = GetComponent<Animator>();
         cameraController = Camera.main.GetComponent<CameraController>();
         audioSource = GetComponent<AudioSource>();
+    }
 
-        rb.constraints = RigidbodyConstraints.FreezeRotationX
-                       | RigidbodyConstraints.FreezeRotationZ;
+    private void SetupRigidbody()
+    {
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
-        originalConstraints = rb.constraints;
-        if (hidePrompt != null) hidePrompt.SetActive(false);
-
     }
 
     private void Update()
     {
         if (IsDead || !CanMove)
         {
-            animator.SetFloat("moveAmount", 0f, 0f, Time.deltaTime);
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
-            currentVelocity = Vector3.zero;
+            HandleDeadState();
             return;
         }
 
@@ -122,7 +120,13 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
         HandleStepClimbing();
         HandlePush();
+    }
 
+    private void HandleDeadState()
+    {
+        animator.SetFloat("moveAmount", 0f, 0f, Time.deltaTime);
+        rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        currentVelocity = Vector3.zero;
     }
 
     private void CacheInput()
@@ -130,12 +134,15 @@ public class PlayerController : MonoBehaviour
         h = Input.GetAxis("Horizontal");
         v = Input.GetAxis("Vertical");
         Vector3 input = new Vector3(h, 0, v);
-        if (input.magnitude > 1f) input = input.normalized;
+        
+        if (input.magnitude > 1f) 
+            input = input.normalized;
 
         moveDir = cameraController.PlanarRotation * input;
         moveAmount = input.magnitude;
 
-        if (currentPushRb != null)
+        // Se sta spingendo, limita il movimento solo in avanti
+        if (isPushing && currentPushableObject != null)
         {
             float forwardDot = Vector3.Dot(moveDir, transform.forward);
             forwardDot = Mathf.Max(0f, forwardDot);
@@ -159,8 +166,8 @@ public class PlayerController : MonoBehaviour
         {
             IsHidden = !IsHidden;
             PlayHideToggleSound();
-            rb.useGravity = !IsHidden;
             
+            rb.useGravity = !IsHidden;
             capsuleCollider.enabled = !IsHidden;
             graphics.SetActive(!IsHidden);
             hidePrompt.SetActive(!IsHidden && isHidable);
@@ -176,28 +183,40 @@ public class PlayerController : MonoBehaviour
     private void UpdateAnimation()
     {
         animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
-        IsMoving = moveAmount != 0f;
+        IsMoving = moveAmount > 0.01f;
     }
 
     private void HandleMovement()
     {
-        float speed = IsStealth ? walkSpeed : runSpeed;
+        float baseSpeed = IsStealth ? walkSpeed : runSpeed;
         Vector3 targetVelocity;
 
-        if (currentPushRb != null)
-            targetVelocity = moveDir * walkSpeed;
+        if (isPushing)
+        {
+            float pushSpeed = runSpeed * pushSpeedMultiplier;
+            targetVelocity = moveDir * pushSpeed;
+            currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
+        }
         else
-            targetVelocity = moveDir * speed;
-
-        currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
-
+        {
+            targetVelocity = moveDir * baseSpeed;
+            
+            float accelerationMultiplier = 1f;
+            if (moveAmount > 0.1f && currentVelocity.magnitude < targetVelocity.magnitude * 0.7f)
+            {
+                Debug.Log("Accelerating quickly");
+                accelerationMultiplier = 2.5f;
+            }
+            
+            currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, acceleration * accelerationMultiplier * Time.fixedDeltaTime);
+        }
         rb.linearVelocity = new Vector3(currentVelocity.x, rb.linearVelocity.y, currentVelocity.z);
     }
 
     private void HandleRotation()
     {
-        if (moveAmount <= 0.01f) return;
-        if (currentPushRb != null) return;
+        if (moveAmount <= 0.01f || isPushing) return;
+        
         targetRotation = Quaternion.LookRotation(moveDir);
         rb.MoveRotation(Quaternion.RotateTowards(
             rb.rotation,
@@ -215,141 +234,178 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    public void KillMe()
+    private void HandleStepClimbing()
     {
-        if (IsDead) return;
-        IsDead = true;
-        CanMove = false;
-        animator.SetFloat("moveAmount", moveAmount, 0.1f, Time.deltaTime);
-        animator.SetTrigger("Die");
-    }
-
-    void HandleStepClimbing()
-    {
-        if (currentPushRb != null) return;
-        if (moveAmount == 0f || Time.fixedTime - lastStepTime < 0.1f) return;
+        if (isPushing || moveAmount == 0f || Time.fixedTime - lastStepTime < 0.1f) 
+            return;
 
         Vector3 lowerRayStart = transform.position + Vector3.up * 0.1f;
         Vector3 upperRayStart = transform.position + Vector3.up * stepHeight;
         Vector3 forwardDir = moveDir.normalized;
 
-        if (TryStepUp(lowerRayStart, upperRayStart, forwardDir, IsStealth ? stepForce * 1.3f : stepForce)) return;
-        if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, 45, 0) * forwardDir, IsStealth ? stepForce * 0.7f : stepForce * 0.4f)) return;
-        if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, -45, 0) * forwardDir, IsStealth ? stepForce * 0.7f : stepForce * 0.4f)) return;
+        float stepForceToUse = IsStealth ? stepForce * 1.3f : stepForce;
+
+        if (TryStepUp(lowerRayStart, upperRayStart, forwardDir, stepForceToUse)) return;
+        if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, 45, 0) * forwardDir, stepForceToUse * 0.7f)) return;
+        if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, -45, 0) * forwardDir, stepForceToUse * 0.7f)) return;
     }
 
-    bool TryStepUp(Vector3 lowerStart, Vector3 upperStart, Vector3 dir, float force)
+    private bool TryStepUp(Vector3 lowerStart, Vector3 upperStart, Vector3 dir, float force)
     {
-        if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer)) return false;
+        if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer)) 
+            return false;
+            
         if (lowerHit.collider.CompareTag("Pushable") || lowerHit.collider.transform.root.CompareTag("Pushable"))
             return false;
+            
         float heightDiff = lowerHit.point.y - transform.position.y;
         if (heightDiff <= 0.01f) return false;
-        if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer)) return false;
+        
+        if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer)) 
+            return false;
 
         rb.AddForce(Vector3.up * force, ForceMode.VelocityChange);
         lastStepTime = Time.fixedTime;
         return true;
     }
 
+    private void HandlePush()
+    {
+        bool isPressing = Input.GetMouseButton(0);
+        bool canPush = currentPushableObject != null;
+        
+        if (isPressing && canPush)
+        {
+            // Verifica che il giocatore stia guardando nella direzione giusta
+            Vector3 forward = transform.forward;
+            Vector3 toObject = (currentPushableObject.transform.position - transform.position).normalized;
+            float dot = Vector3.Dot(forward, toObject);
+            
+            if (dot > 0.5f) // Soglia per iniziare la spinta
+            {
+                StartPushing();
+            }
+            else
+            {
+                StopPushing();
+            }
+        }
+        else
+        {
+            StopPushing();
+        }
+    }
+
+    private void StartPushing()
+    {
+        if (!isPushing)
+        {
+            isPushing = true;
+            prevStealth = IsStealth;
+            animator.SetBool("IsPushing", true);
+            animator.SetBool("IsStealth", false);
+        }
+        
+        // Applica forza all'oggetto
+        Rigidbody pushableRb = currentPushableObject.GetComponent<Rigidbody>();
+        if (pushableRb != null)
+        {
+            Vector3 pushDir = transform.forward;
+            pushDir.y = 0f;
+            pushDir.Normalize();   
+            pushableRb.AddForce(pushDir * pushForce, ForceMode.Force);
+        }
+        
+        // Aggiorna le animazioni
+        animator.SetBool("IsPushing", true);
+        animator.SetBool("IsStealth", false);
+    }
+
+    private void StopPushing()
+    {
+        if (!isPushing) return;
+
+        isPushing = false;
+        currentVelocity = Vector3.zero;
+        rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        
+        animator.SetBool("IsPushing", false);
+        IsStealth = prevStealth;
+        animator.SetBool("IsStealth", IsStealth);
+    }
+
+    #region Collision Detection
+    private void OnCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Pushable"))
+        {
+            Vector3 forward = transform.forward;
+            Vector3 toObject = (collision.transform.position - transform.position).normalized;
+            float dot = Vector3.Dot(forward, toObject);
+
+            // Se il giocatore sta guardando l'oggetto, riduci la velocità per evitare sovrapposizioni
+            if (dot > 0.8f)
+            {
+                rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+            }
+            
+            currentPushableObject = collision.gameObject;
+        }
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Pushable") && collision.gameObject == currentPushableObject)
+        {
+            currentPushableObject = null;
+            StopPushing();
+        }
+    }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.tag == "Hidable")
+        if (other.gameObject.CompareTag("Hidable"))
         {
             isHidable = true;
-            hidePrompt.SetActive(true);
+            if (hidePrompt != null)
+                hidePrompt.SetActive(true);
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.gameObject.tag == "Hidable")
+        if (other.gameObject.CompareTag("Hidable"))
         {
             isHidable = false;
-            hidePrompt.SetActive(false);
+            if (hidePrompt != null)
+                hidePrompt.SetActive(false);
         }
     }
+    #endregion
 
-    void OnCollisionStay(Collision collision)
+    #region Public Methods
+    public void KillMe()
     {
-        if (collision.gameObject.CompareTag("Pushable"))
-        {
-            Debug.Log("Collision with Pushable detected");
-            Vector3 forward = transform.forward;
-            Vector3 toObject = (collision.transform.position - transform.position).normalized;
-            float dot = Vector3.Dot(forward, toObject);
-
-            if (dot > 0.8f)
-            {
-                rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
-            }
-        }
+        if (IsDead) return;
+        
+        IsDead = true;
+        CanMove = false;
+        animator.SetFloat("moveAmount", 0f, 0.1f, Time.deltaTime);
+        animator.SetTrigger("Die");
     }
 
-    void HandlePush()
+    public bool IsPushingObject()
     {
-        bool isPressing = Input.GetMouseButton(0);
-
-        if (isPressing)
-        {
-            if (currentPushRb == null)
-            {
-                Vector3 origin = transform.position + Vector3.up * 0.6f;
-                if (Physics.Raycast(origin, transform.forward, out RaycastHit hit, 1.5f)
-                    && hit.collider.CompareTag("Pushable"))
-                {
-                    currentPushRb = hit.collider.attachedRigidbody;
-                    originalDrag = currentPushRb.linearDamping;
-                    originalAngularDrag = currentPushRb.angularDamping;
-                    currentPushRb.linearDamping = 8f;
-                    currentPushRb.angularDamping = 8f;
-
-                    Vector3 dir = transform.forward;
-                    currentPushAxis = Mathf.Abs(dir.x) > Mathf.Abs(dir.z) ? PushAxis.X : PushAxis.Z;
-
-                    RigidbodyConstraints freezePos = RigidbodyConstraints.FreezePositionY;
-                    freezePos |= (currentPushAxis == PushAxis.X)
-                                ? RigidbodyConstraints.FreezePositionZ
-                                : RigidbodyConstraints.FreezePositionX;
-                    rb.constraints = freezePos
-                                | RigidbodyConstraints.FreezeRotation;
-                }
-            }
-
-            if (currentPushRb != null)
-            {
-                Vector3 pushDir = transform.forward;
-                pushDir.y = 0f;
-                pushDir.Normalize();
-                currentPushRb.AddForceAtPosition(pushDir * forceapll, currentPushRb.worldCenterOfMass, ForceMode.Force);
-                animator.SetBool("IsPushing", true);
-                animator.SetBool("IsStealth", false);
-                return;
-            }
-        }
-
-        if (currentPushRb != null)
-        {
-            currentPushRb.linearDamping = originalDrag;
-            currentPushRb.angularDamping = originalAngularDrag;
-            currentPushRb = null;
-            currentPushAxis = PushAxis.None;
-            rb.constraints = originalConstraints;
-
-        }
-
-        animator.SetBool("IsPushing", false);
+        return isPushing;
     }
 
-    private void OnDrawGizmosSelected()
+    public GameObject GetCurrentPushableObject()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.TransformPoint(groundCheckOffset), groundCheckRadius);
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.1f, 0.1f);
+        return currentPushableObject;
     }
-    
+    #endregion
+
+    #region Audio
     private void PlayHideToggleSound()
     {
         if (audioSource != null && hideToggleSound != null)
@@ -357,5 +413,25 @@ public class PlayerController : MonoBehaviour
             audioSource.PlayOneShot(hideToggleSound);
         }
     }
+    #endregion
 
+    #region Debug
+    private void OnDrawGizmosSelected()
+    {
+        // Ground check visualization
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.TransformPoint(groundCheckOffset), groundCheckRadius);
+        
+        // Step check visualization
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.1f, 0.1f);
+        
+        // Push direction visualization
+        if (isPushing && currentPushableObject != null)
+        {
+            Gizmos.color = Color.blue;
+            Gizmos.DrawRay(transform.position + Vector3.up, transform.forward * 2f);
+        }
+    }
+    #endregion
 }
