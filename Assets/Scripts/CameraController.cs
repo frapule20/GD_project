@@ -68,6 +68,7 @@ public class CameraController : MonoBehaviour
     {
         InitializeCamera();
         CacheInvertValues();
+        SetInitialCameraPosition();
     }
 
     private void LateUpdate()
@@ -92,7 +93,27 @@ public class CameraController : MonoBehaviour
     {
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
-        rotationY = followTarget.eulerAngles.y;
+
+        rotationY = cameraTransform.eulerAngles.y;
+        rotationX = cameraTransform.eulerAngles.x;
+        
+        if (rotationX > 180f) rotationX -= 360f;
+        rotationX = Mathf.Clamp(rotationX, minVerticalAngle, maxVerticalAngle);
+    }
+
+    private void SetInitialCameraPosition()
+    {
+        if (followTarget == null) return;
+
+        // Calcola la posizione iniziale desiderata
+        CalculateTargetTransform();
+        
+        // Posiziona immediatamente la camera senza smooth
+        cameraTransform.position = desiredPosition;
+        cameraTransform.rotation = targetRotation;
+        
+        // Reset della velocità per SmoothDamp
+        cameraVelocity = Vector3.zero;
     }
 
     private void CacheInvertValues()
