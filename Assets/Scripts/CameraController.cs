@@ -91,9 +91,6 @@ public class CameraController : MonoBehaviour
 
     private void InitializeCamera()
     {
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
-
         rotationY = cameraTransform.eulerAngles.y;
         rotationX = cameraTransform.eulerAngles.x;
         
@@ -101,17 +98,29 @@ public class CameraController : MonoBehaviour
         rotationX = Mathf.Clamp(rotationX, minVerticalAngle, maxVerticalAngle);
     }
 
+    public void InitializeCameraForGame()
+    {
+    InitializeCamera();
+    
+    if (GameManager.Instance != null && !GameManager.Instance.IsMenuActive())
+    {
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+    }
+    }
+
+
     private void SetInitialCameraPosition()
     {
         if (followTarget == null) return;
 
         // Calcola la posizione iniziale desiderata
         CalculateTargetTransform();
-        
+
         // Posiziona immediatamente la camera senza smooth
         cameraTransform.position = desiredPosition;
         cameraTransform.rotation = targetRotation;
-        
+
         // Reset della velocità per SmoothDamp
         cameraVelocity = Vector3.zero;
     }
@@ -154,6 +163,9 @@ public class CameraController : MonoBehaviour
 
     private void ProcessMouseInput()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsMenuActive())
+            return;
+
         // Considera di usare Input System invece di Input legacy
         float mouseX = Input.GetAxis("Mouse X");
         float mouseY = Input.GetAxis("Mouse Y");

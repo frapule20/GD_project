@@ -204,7 +204,6 @@ public class PlayerController : MonoBehaviour
             float accelerationMultiplier = 1f;
             if (moveAmount > 0.1f && currentVelocity.magnitude < targetVelocity.magnitude * 0.7f)
             {
-                Debug.Log("Accelerating quickly");
                 accelerationMultiplier = 2.5f;
             }
             
@@ -387,12 +386,23 @@ public class PlayerController : MonoBehaviour
     public void KillMe()
     {
         if (IsDead) return;
-        
+
         IsDead = true;
         CanMove = false;
         animator.SetFloat("moveAmount", 0f, 0.1f, Time.deltaTime);
         animator.SetTrigger("Die");
+        
+        StartCoroutine(WaitForDeathAnimation());
     }
+
+    private System.Collections.IEnumerator WaitForDeathAnimation()
+{
+    
+    yield return new WaitForSeconds(3f);
+    
+   
+    GameManager.Instance.OnPlayerDeath();
+}
 
     public bool IsPushingObject()
     {
@@ -418,15 +428,12 @@ public class PlayerController : MonoBehaviour
     #region Debug
     private void OnDrawGizmosSelected()
     {
-        // Ground check visualization
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.TransformPoint(groundCheckOffset), groundCheckRadius);
         
-        // Step check visualization
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.1f, 0.1f);
         
-        // Push direction visualization
         if (isPushing && currentPushableObject != null)
         {
             Gizmos.color = Color.blue;

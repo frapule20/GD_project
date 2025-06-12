@@ -20,7 +20,6 @@ public class PuzzleManager : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("PuzzleManager started");
         if (rewardObject != null)
             rewardObject.SetActive(startActive);
             puzzleWasCompleted = startActive;
