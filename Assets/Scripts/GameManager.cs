@@ -25,7 +25,7 @@ public class GameManager : MonoBehaviour
     [Header("RedKey Object")]
     public GameObject redKeyObject;
 
-    private Vector3 initialCheckpointPos = new Vector3(0f, 0.05f, 1.88f);
+    private Vector3 initialCheckpointPos = new Vector3(0f, 0f, 28.6f);
     private Vector3 halfCheckpointPos = new Vector3(-0.082f, 1.850f, -11.204f);
 
     public static GameManager Instance;
@@ -60,7 +60,6 @@ public class GameManager : MonoBehaviour
     {
         SetupButtons();
         
-        // Nascondi immediatamente il menu se non dovrebbe essere mostrato
         if (!shouldShowMenuOnStart || shouldSpawnAtHalfCheckpoint)
         {
             menuPanel.SetActive(false);
@@ -108,13 +107,11 @@ public class GameManager : MonoBehaviour
     private void SpawnAtHalfCheckpoint()
     {
         
-        // Forza la posizione del player prima di tutto
         player.transform.position = halfCheckpointPos;
         
         if (shouldLoadSavedData && SaveSystem.HasSave())
         {
             SaveData data = SaveSystem.LoadGame();
-            // Assicurati che la posizione sia impostata dopo il caricamento
             player.transform.position = halfCheckpointPos;
             player.RedKey = data.hasRedKey;
 
@@ -320,12 +317,10 @@ public class GameManager : MonoBehaviour
         
         if (SaveSystem.HasSave())
         {
-            // Imposta le variabili per il reload (spawn al half checkpoint senza menu)
             shouldSpawnAtHalfCheckpoint = true;
             shouldLoadSavedData = true;
             shouldShowMenuOnStart = false;
 
-            // Ricarica la scena completamente
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
     }
@@ -333,7 +328,7 @@ public class GameManager : MonoBehaviour
     private void DeleteSave()
     {
         SaveSystem.DeleteSave();
-        ShowMenu(); // Aggiorna il menu per disabilitare i bottoni
+        ShowMenu();
     }
     
     private void Update()

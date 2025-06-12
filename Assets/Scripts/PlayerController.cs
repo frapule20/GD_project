@@ -94,6 +94,9 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        StepAudio.PlayerCanMove = CanMove;
+        StepAudio.PlayerIsHidden = IsHidden;
+        
         if (IsDead || !CanMove)
         {
             HandleDeadState();
