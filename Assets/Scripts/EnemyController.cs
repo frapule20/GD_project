@@ -28,7 +28,9 @@ public class EnemyController : MonoBehaviour
     [SerializeField] public float sightRange = 5f;
     [Range(0, 360)] public float sightAngle = 120;
     private AudioSource audioSource;
+    private AudioSource audioSource2;
     public AudioClip attackClip;
+    public AudioClip swordClip;
     
 
     Animator anim;
@@ -47,6 +49,7 @@ public class EnemyController : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         anim = transform.GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
+        audioSource2 = GetComponent<AudioSource>();
         audioSource.spatialBlend = 1f;
         audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
 
@@ -181,6 +184,7 @@ public class EnemyController : MonoBehaviour
                 if (!audioSource.isPlaying)
                 {
                     audioSource.PlayOneShot(attackClip);
+                    audioSource2.PlayOneShot(swordClip);
                 }
                 anim.SetBool("IsMoving", false);
                 anim.SetBool("IsAlert", false);
