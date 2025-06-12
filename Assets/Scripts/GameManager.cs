@@ -130,12 +130,9 @@ public class GameManager : MonoBehaviour
         else
         {
             player.RedKey = false;
-            Debug.Log($"Player spawnnato al half checkpoint senza save data: {halfCheckpointPos}");
         }
         
-        Debug.Log($"Player position dopo spawn: {player.transform.position}");
         
-        // Forza un ulteriore aggiornamento della posizione
         StartCoroutine(ForcePositionUpdate());
     }
     
@@ -145,7 +142,6 @@ public class GameManager : MonoBehaviour
         if (shouldSpawnAtHalfCheckpoint || (!shouldShowMenuOnStart && shouldLoadSavedData))
         {
             player.transform.position = halfCheckpointPos;
-            Debug.Log($"FORCE UPDATE - Player position: {player.transform.position}");
         }
     }
 
@@ -154,8 +150,6 @@ public class GameManager : MonoBehaviour
         player.transform.position = initialCheckpointPos;
         player.RedKey = false;
         UpdateRedKeyObjectVisibility(false);
-        Debug.Log($"Player spawnnato al checkpoint iniziale: {initialCheckpointPos}");
-        Debug.Log($"Player position dopo spawn iniziale: {player.transform.position}");
     }
 
     private void UpdateRedKeyObjectVisibility(bool hasRedKey)
@@ -163,7 +157,6 @@ public class GameManager : MonoBehaviour
         if (redKeyObject != null)
         {
             redKeyObject.SetActive(!hasRedKey);
-            Debug.Log($"RedKey object visibility updated: {!hasRedKey} (player has RedKey: {hasRedKey})");
         }
         else
         {
@@ -187,7 +180,6 @@ public class GameManager : MonoBehaviour
 
     private void ResetStaticVariables()
     {
-        Debug.Log("Resetting static variables...");
         shouldSpawnAtHalfCheckpoint = false;
         shouldLoadSavedData = false;
         shouldShowMenuOnStart = true;
@@ -218,12 +210,10 @@ public class GameManager : MonoBehaviour
             SaveSystem.DeleteSave();
         }
 
-        // Imposta le variabili per iniziare un nuovo gioco
         shouldShowMenuOnStart = false;
         shouldSpawnAtHalfCheckpoint = false;
         shouldLoadSavedData = false;
 
-        // Ricarica la scena per un avvio pulito
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
@@ -231,18 +221,15 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("GAME RESTARTED - Ricaricando scena completa");
 
-        // Elimina eventuali salvataggi
         if (SaveSystem.HasSave())
         {
             SaveSystem.DeleteSave();
         }
 
-        // Imposta le variabili per il restart (spawn iniziale senza menu)
         shouldSpawnAtHalfCheckpoint = false;
         shouldLoadSavedData = false;
         shouldShowMenuOnStart = false;
 
-        // Ricarica la scena completamente
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
@@ -283,7 +270,6 @@ public class GameManager : MonoBehaviour
         
         if (SaveSystem.HasSave())
         {
-            // Ricarica dalla posizione del half checkpoint senza mostrare il menu
             shouldSpawnAtHalfCheckpoint = true;
             shouldLoadSavedData = true;
             shouldShowMenuOnStart = false;
@@ -293,7 +279,6 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // Nessun salvataggio, mostra menu
             ShowMenu();
         }
     }
@@ -306,8 +291,6 @@ public class GameManager : MonoBehaviour
         {
             SaveSystem.DeleteSave();
         }
-
-        // Ricarica la scena dall'inizio e mostra il menu
         shouldSpawnAtHalfCheckpoint = false;
         shouldLoadSavedData = false;
         shouldShowMenuOnStart = true;
