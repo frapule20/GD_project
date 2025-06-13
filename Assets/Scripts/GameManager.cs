@@ -11,6 +11,9 @@ public class GameManager : MonoBehaviour
     public Button reloadButton;
     public Button deleteSaveButton;
 
+    [Header("UI Checkpoint Final")]
+    public GameObject finalCheckpointCanvas;
+
     [Header("Checkpoint Objects")]
     public Transform initialCheckpoint;
     public Transform halfCheckpoint;
@@ -341,4 +344,13 @@ public class GameManager : MonoBehaviour
                 ShowMenu();
         }
     }
+
+    public void OnFinalCheckpointReached()
+    {
+        if (finalCheckpointCanvas != null)
+        {
+            finalCheckpointCanvas.SetActive(true);  // attiva il Canvas
+        }
+    }
+
 }
