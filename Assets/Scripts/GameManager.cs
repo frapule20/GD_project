@@ -49,7 +49,7 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         if (menuPanel != null && (!shouldShowMenuOnStart || shouldSpawnAtHalfCheckpoint))
         {
             menuPanel.SetActive(false);
@@ -59,14 +59,14 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         SetupButtons();
-        
+
         if (!shouldShowMenuOnStart || shouldSpawnAtHalfCheckpoint)
         {
             menuPanel.SetActive(false);
             isMenuActive = false;
             Time.timeScale = 1f;
         }
-        
+
         // Attendi un frame prima di gestire lo spawn per assicurarti che tutto sia inizializzato
         StartCoroutine(HandleSceneStartCoroutine());
     }
@@ -79,12 +79,12 @@ public class GameManager : MonoBehaviour
 
     private void HandleSceneStart()
     {
-        
+
         if (shouldSpawnAtHalfCheckpoint)
         {
             Debug.Log("Spawning at half checkpoint...");
             SpawnAtHalfCheckpoint();
-            HideMenu(); 
+            HideMenu();
             StartGameplay();
         }
         else if (!shouldShowMenuOnStart && !isFirstGameStart)
@@ -106,9 +106,9 @@ public class GameManager : MonoBehaviour
 
     private void SpawnAtHalfCheckpoint()
     {
-        
+
         player.transform.position = halfCheckpointPos;
-        
+
         if (shouldLoadSavedData && SaveSystem.HasSave())
         {
             SaveData data = SaveSystem.LoadGame();
@@ -116,7 +116,7 @@ public class GameManager : MonoBehaviour
             player.RedKey = data.hasRedKey;
 
             UpdateRedKeyObjectVisibility(data.hasRedKey);
-            
+
             if (cameraController != null)
             {
                 cameraController.transform.position = new Vector3(1.28f, 2.14f, -7.50f);
@@ -128,11 +128,11 @@ public class GameManager : MonoBehaviour
         {
             player.RedKey = false;
         }
-        
-        
+
+
         StartCoroutine(ForcePositionUpdate());
     }
-    
+
     private System.Collections.IEnumerator ForcePositionUpdate()
     {
         yield return new WaitForFixedUpdate();
@@ -164,7 +164,7 @@ public class GameManager : MonoBehaviour
     {
         UpdateRedKeyObjectVisibility(true);
     }
-    
+
     private void StartGameplay()
     {
         gameStarted = true;
@@ -201,7 +201,7 @@ public class GameManager : MonoBehaviour
     private void StartGame()
     {
         Debug.Log("STARTING NEW GAME");
-        
+
         if (SaveSystem.HasSave())
         {
             SaveSystem.DeleteSave();
@@ -264,14 +264,14 @@ public class GameManager : MonoBehaviour
 
     public void OnPlayerDeath()
     {
-        
+
         if (SaveSystem.HasSave())
         {
             shouldSpawnAtHalfCheckpoint = true;
             shouldLoadSavedData = true;
             shouldShowMenuOnStart = false;
-            
-            
+
+
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
         else
@@ -283,7 +283,7 @@ public class GameManager : MonoBehaviour
     public void OnPlayerWin()
     {
 
-        
+
         if (SaveSystem.HasSave())
         {
             SaveSystem.DeleteSave();
@@ -291,7 +291,7 @@ public class GameManager : MonoBehaviour
         shouldSpawnAtHalfCheckpoint = false;
         shouldLoadSavedData = false;
         shouldShowMenuOnStart = true;
-        
+
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
@@ -305,16 +305,16 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("Game is quitting...");
         SaveSystem.DeleteSave();
-        #if UNITY_EDITOR
+#if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
-        #else
+#else
             Application.Quit();
-        #endif
+#endif
     }
 
     private void ReloadGame()
     {
-        
+
         if (SaveSystem.HasSave())
         {
             shouldSpawnAtHalfCheckpoint = true;
@@ -330,7 +330,7 @@ public class GameManager : MonoBehaviour
         SaveSystem.DeleteSave();
         ShowMenu();
     }
-    
+
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape))

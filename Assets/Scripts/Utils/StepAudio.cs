@@ -36,9 +36,9 @@ public class StepAudio : MonoBehaviour
             
         if (animator == null)
             animator = GetComponent<Animator>();
-            
-        originalVolume = audioSource.volume;
-        
+
+        originalVolume = 1.5f; 
+
         CheckForStealthParameter();
     }
     
