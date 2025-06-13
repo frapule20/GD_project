@@ -11,24 +11,31 @@ public class ButtonTextEffects : MonoBehaviour, IPointerEnterHandler, IPointerEx
     public Color disabledColor = Color.gray;
 
     private Button button;
+    private bool wasInteractable;
 
     void Awake()
     {
         button = GetComponent<Button>();
-        UpdateColor();
+        if (button != null)
+        {
+            wasInteractable = button.interactable;
+            UpdateColor();
+        }
     }
 
     void Update()
     {
-        if (button != null)
+        // Controlla solo se lo stato interactable è cambiato
+        if (button != null && button.interactable != wasInteractable)
         {
+            wasInteractable = button.interactable;
             UpdateColor();
         }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (button.interactable)
+        if (button != null && button.interactable)
         {
             buttonText.color = hoverColor;
         }
@@ -36,7 +43,7 @@ public class ButtonTextEffects : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        if (button.interactable)
+        if (button != null && button.interactable)
         {
             buttonText.color = normalColor;
         }
@@ -44,6 +51,8 @@ public class ButtonTextEffects : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
     private void UpdateColor()
     {
+        if (buttonText == null) return;
+
         if (button.interactable)
         {
             buttonText.color = normalColor;
