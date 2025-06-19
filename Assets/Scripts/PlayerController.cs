@@ -78,6 +78,7 @@ public class PlayerController : MonoBehaviour
 
     private void InitializeComponents()
     {
+        // mesh e componenti grafici
         graphics = transform.GetChild(0).gameObject;
         rb = GetComponent<Rigidbody>();
         capsuleCollider = GetComponent<CapsuleCollider>();
@@ -94,6 +95,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // gestione audio passi
         StepAudio.PlayerCanMove = CanMove;
         StepAudio.PlayerIsHidden = IsHidden;
         
@@ -134,13 +136,16 @@ public class PlayerController : MonoBehaviour
 
     private void CacheInput()
     {
+        //lettura degli assi
         h = Input.GetAxis("Horizontal");
         v = Input.GetAxis("Vertical");
         Vector3 input = new Vector3(h, 0, v);
-        
-        if (input.magnitude > 1f) 
+
+        //se l'input è maggiore di 1, vuol dire che va in diagonale, quindi lo normalizziamo
+        if (input.magnitude > 1f)
             input = input.normalized;
 
+        // Calcola la direzione di movimento e la quantità di movimento in base all'orientamento della camera
         moveDir = cameraController.PlanarRotation * input;
         moveAmount = input.magnitude;
 
@@ -191,6 +196,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleMovement()
     {
+        //due velocità uno aper Stealth una per camminata normale
         float baseSpeed = IsStealth ? walkSpeed : runSpeed;
         Vector3 targetVelocity;
 
@@ -207,6 +213,7 @@ public class PlayerController : MonoBehaviour
             float accelerationMultiplier = 1f;
             if (moveAmount > 0.1f && currentVelocity.magnitude < targetVelocity.magnitude * 0.7f)
             {
+                // per gestire l'interruzione della spinta
                 accelerationMultiplier = 2.5f;
             }
             
@@ -219,7 +226,9 @@ public class PlayerController : MonoBehaviour
     {
         if (moveAmount <= 0.01f || isPushing) return;
         
+        // calcola una rotazione che guarda esattamente nella direzione del movimento
         targetRotation = Quaternion.LookRotation(moveDir);
+        // rotazione del rigidbody
         rb.MoveRotation(Quaternion.RotateTowards(
             rb.rotation,
             targetRotation,
@@ -229,6 +238,8 @@ public class PlayerController : MonoBehaviour
 
     private void GroundCheck()
     {
+        // capiamo se il giocatore è sulle scale
+        // groundLayer -> Obstacles ovvero scale
         isGrounded = Physics.CheckSphere(
             transform.TransformPoint(groundCheckOffset),
             groundCheckRadius,
@@ -245,8 +256,10 @@ public class PlayerController : MonoBehaviour
         Vector3 upperRayStart = transform.position + Vector3.up * stepHeight;
         Vector3 forwardDir = moveDir.normalized;
 
+        // Se in modalità stealth, usa una forza dello step maggiorata
         float stepForceToUse = IsStealth ? stepForce * 1.3f : stepForce;
 
+        // prova tre direzioni per scalare
         if (TryStepUp(lowerRayStart, upperRayStart, forwardDir, stepForceToUse)) return;
         if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, 45, 0) * forwardDir, stepForceToUse * 0.7f)) return;
         if (TryStepUp(lowerRayStart, upperRayStart, Quaternion.Euler(0, -45, 0) * forwardDir, stepForceToUse * 0.7f)) return;
@@ -254,16 +267,19 @@ public class PlayerController : MonoBehaviour
 
     private bool TryStepUp(Vector3 lowerStart, Vector3 upperStart, Vector3 dir, float force)
     {
-        if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer)) 
+        // Raycast basso per rilevare la presenza di un ostacolo entro stepDistance
+        if (!Physics.Raycast(lowerStart, dir, out var lowerHit, stepDistance, groundLayer))
             return false;
-            
+        
         if (lowerHit.collider.CompareTag("Pushable") || lowerHit.collider.transform.root.CompareTag("Pushable"))
             return false;
-            
+
+        // Calcola l'altezza del gradino rispetto alla posizione del personaggio 
         float heightDiff = lowerHit.point.y - transform.position.y;
         if (heightDiff <= 0.01f) return false;
         
-        if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer)) 
+
+        if (Physics.Raycast(upperStart, dir, stepDistance, groundLayer))
             return false;
 
         rb.AddForce(Vector3.up * force, ForceMode.VelocityChange);
@@ -281,7 +297,7 @@ public class PlayerController : MonoBehaviour
             // Verifica che il giocatore stia guardando nella direzione giusta
             Vector3 forward = transform.forward;
             Vector3 toObject = (currentPushableObject.transform.position - transform.position).normalized;
-            float dot = Vector3.Dot(forward, toObject);
+            float dot = Vector3.Dot(forward, toObject); 
             
             if (dot > 0.5f) // Soglia per iniziare la spinta
             {

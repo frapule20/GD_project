@@ -14,6 +14,7 @@ public enum AIState
 }
 public class EnemyController : MonoBehaviour
 {
+    // stao inziale della guardia
     public AIState actualState = AIState.Idle;
 
     [Header("Movement Settings")]
@@ -237,6 +238,7 @@ public class EnemyController : MonoBehaviour
     }
     bool DestinationReached()
     {
+        // verifica se ha raggiunto al destinazione
         return agent.remainingDistance < agent.stoppingDistance && !agent.pathPending;
 
     }
@@ -269,8 +271,10 @@ public class EnemyController : MonoBehaviour
         if (distanceToPlayer < sightRange)
         {
             Debug.DrawLine(transform.position, player.transform.position, Color.red);
+            // calcoliamo la direzione e l'angolo tra la guardia e il giocatore
             Vector3 directionToPlayer = (player.transform.position - transform.position).normalized;
             float angleToPlayer = Vector3.Angle(transform.forward, directionToPlayer);
+            // vediamo se il giocatore è all'interno dell'angolo di visione della guardia
             if (angleToPlayer < sightAngle / 2)
             {
                 Vector3 startPos;
@@ -285,7 +289,7 @@ public class EnemyController : MonoBehaviour
                 ray = new Ray(startPos, directionToPlayer);
                 if (Physics.Raycast(ray, out hit))
                 {
-                    if ( hit.transform.gameObject.tag == "Player")
+                    if (hit.transform.gameObject.tag == "Player")
                     {
                         return true;
                     }

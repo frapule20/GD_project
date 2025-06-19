@@ -308,11 +308,11 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("Game is quitting...");
         SaveSystem.DeleteSave();
-#if UNITY_EDITOR
+    #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
-#else
+    #else
             Application.Quit();
-#endif
+    #endif
     }
 
     private void ReloadGame()

@@ -24,5 +24,7 @@ UserSettings/
 [Mac/Linux/Windows system files]
 .DS_Store
 *.swp
+Assets/Models/DungeonModularPack/Scenes/DemoScene/Lightmap-0_comp_light.exr
+
 
 .vs/

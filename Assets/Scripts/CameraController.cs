@@ -91,9 +91,11 @@ public class CameraController : MonoBehaviour
 
     private void InitializeCamera()
     {
+        // prende gli angoli della camera e si assicurano che siano corretti e corenti 
         rotationY = cameraTransform.eulerAngles.y;
         rotationX = cameraTransform.eulerAngles.x;
         
+        // controllo che siano nell'intervallo -180 a 180 e nei limiti ipostati nell'ispector
         if (rotationX > 180f) rotationX -= 360f;
         rotationX = Mathf.Clamp(rotationX, minVerticalAngle, maxVerticalAngle);
     }
@@ -177,6 +179,7 @@ public class CameraController : MonoBehaviour
 
     private void CalculateTargetTransform()
     {
+        // quindi clacoliamo la posizione del personaggio
         targetRotation = Quaternion.Euler(rotationX, rotationY, 0);
         
         // Cache focus position calculation
@@ -193,7 +196,7 @@ public class CameraController : MonoBehaviour
 
     private void HandleObstruction()
     {
-        // Ottimizzazione: usa Physics.RaycastNonAlloc per evitare allocazioni
+        // controlla se c'è un ostacolo tra il giocatore e la camera
         int hitCount = Physics.RaycastNonAlloc(focusPosition, 
             (desiredPosition - focusPosition).normalized, 
             raycastResults, 
@@ -203,6 +206,7 @@ public class CameraController : MonoBehaviour
         if (hitCount > 0)
         {
             obstructionHit = raycastResults[0];
+            // se c'è un ostacolo si sposta lungo la normale dell'ostacolo (ovvero del muro)
             desiredPosition = obstructionHit.point + obstructionHit.normal * clipPadding;
         }
     }
@@ -211,6 +215,7 @@ public class CameraController : MonoBehaviour
     {
         if (wasInTopDown)
         {
+            // interpolazione posizione e rotazione
             cameraTransform.position = Vector3.Lerp(cameraTransform.position, desiredPosition, 
                 Time.deltaTime * transitionSpeed);
             cameraTransform.rotation = Quaternion.Lerp(cameraTransform.rotation, targetRotation, 
@@ -224,6 +229,7 @@ public class CameraController : MonoBehaviour
         }
         else
         {
+            // smoothDamp per un moviemnto più smooth
             cameraTransform.position = Vector3.SmoothDamp(cameraTransform.position, desiredPosition, 
                 ref cameraVelocity, smoothTime);
             cameraTransform.rotation = targetRotation;
@@ -277,7 +283,6 @@ public class CameraController : MonoBehaviour
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        // Assicurati che i valori siano validi nell'editor
         minVerticalAngle = Mathf.Clamp(minVerticalAngle, -90f, 0f);
         maxVerticalAngle = Mathf.Clamp(maxVerticalAngle, 0f, 90f);
         distance = Mathf.Max(0.1f, distance);

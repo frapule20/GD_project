@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 public class PlayButton : MonoBehaviour
 {
-    public string sceneToLoad = "MainScene"; // personalizza con il nome corretto
+    public string sceneToLoad = "MainScene";
 
     public void OnPlayClicked()
     {
